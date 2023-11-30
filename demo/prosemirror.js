@@ -22,7 +22,13 @@ window.addEventListener('load', () => {
     state: EditorState.create({
       schema,
       plugins: [
-        ySyncPlugin(type),
+        ySyncPlugin(type, {
+          hooks: {
+            onInsertNode: (pNode, yDoc) => {
+              console.log(pNode.toJSON())
+            }
+          }
+        }),
         yCursorPlugin(provider.awareness),
         yUndoPlugin(),
         keymap({
