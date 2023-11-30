@@ -44,11 +44,20 @@ export const isVisible = (item, snapshot) =>
  */
 
 /**
+ * @typedef {('onInsertNode'|'onRemoveNode'|'onMoveNode')} Hook
+ */
+
+/**
+ * @typedef {Partial<Record<Hook, function(PModel.Node | PModel.Node[], Y.Doc): void>>} Hooks
+ */
+
+/**
  * @typedef {Object} YSyncOpts
  * @property {Array<ColorDef>} [YSyncOpts.colors]
  * @property {Map<string,ColorDef>} [YSyncOpts.colorMapping]
  * @property {Y.PermanentUserData|null} [YSyncOpts.permanentUserData]
  * @property {function} [YSyncOpts.onFirstRender] Fired when the content from Yjs is initially rendered to ProseMirror
+ * @property {Hooks} [hooks]
  */
 
 /**
@@ -87,7 +96,8 @@ export const ySyncPlugin = (yXmlFragment, {
   colors = defaultColors,
   colorMapping = new Map(),
   permanentUserData = null,
-  onFirstRender = () => {}
+  onFirstRender = () => { },
+  hooks = {}
 } = {}) => {
   let changedInitialContent = false
   let rerenderTimeout
@@ -115,7 +125,8 @@ export const ySyncPlugin = (yXmlFragment, {
           addToHistory: true,
           colors,
           colorMapping,
-          permanentUserData
+          permanentUserData,
+          hooks
         }
       },
       apply: (tr, pluginState) => {
@@ -172,7 +183,8 @@ export const ySyncPlugin = (yXmlFragment, {
       }
     },
     view: (view) => {
-      const binding = new ProsemirrorBinding(yXmlFragment, view)
+      const state = plugin.getState(view.state);
+      const binding = new ProsemirrorBinding(yXmlFragment, view, state.hooks)
       if (rerenderTimeout != null) {
         rerenderTimeout.destroy()
       }
@@ -274,10 +286,12 @@ export class ProsemirrorBinding {
   /**
    * @param {Y.XmlFragment} yXmlFragment The bind source
    * @param {any} prosemirrorView The target binding
+   * @param {Hooks} [hooks]
    */
-  constructor (yXmlFragment, prosemirrorView) {
+  constructor (yXmlFragment, prosemirrorView, hooks) {
     this.type = yXmlFragment
     this.prosemirrorView = prosemirrorView
+    this.hooks = hooks
     this.mux = createMutex()
     this.isDestroyed = false
     /**
@@ -550,7 +564,7 @@ export class ProsemirrorBinding {
 
   _prosemirrorChanged (doc) {
     this.doc.transact(() => {
-      updateYFragment(this.doc, this.type, doc, this.mapping)
+      updateYFragment(this.doc, this.type, doc, this.mapping, this.hooks)
       this.beforeTransactionSelection = getRelativeSelection(
         this,
         this.prosemirrorView.state
@@ -977,8 +991,9 @@ const marksToAttributes = (marks) => {
  * @param {Y.XmlFragment} yDomFragment
  * @param {any} pNode
  * @param {ProsemirrorMapping} mapping
+ * @param {Hooks} [hooks]
  */
-export const updateYFragment = (y, yDomFragment, pNode, mapping) => {
+export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
   if (
     yDomFragment instanceof Y.XmlElement &&
     yDomFragment.nodeName !== pNode.type.name
@@ -1090,7 +1105,8 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping) => {
             y,
             /** @type {Y.XmlFragment} */ (leftY),
             /** @type {PModel.Node} */ (leftP),
-            mapping
+            mapping,
+            hooks
           )
           left += 1
         } else if (updateRight) {
@@ -1098,7 +1114,8 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping) => {
             y,
             /** @type {Y.XmlFragment} */ (rightY),
             /** @type {PModel.Node} */ (rightP),
-            mapping
+            mapping,
+            hooks
           )
           right += 1
         } else {
@@ -1120,13 +1137,17 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping) => {
       // Only delete the content of the Y.Text to retain remote changes on the same Y.Text object
       yChildren[0].delete(0, yChildren[0].length)
     } else if (yDelLen > 0) {
-      yDomFragment.slice(left, left + yDelLen).forEach(type => mapping.delete(type))
+      yDomFragment.slice(left, left + yDelLen).forEach(type => {
+        hooks.onRemoveNode?.(mapping.get(type), y);
+        mapping.delete(type)
+      })
       yDomFragment.delete(left, yDelLen)
     }
     if (left + right < pChildCnt) {
       const ins = []
       for (let i = left; i < pChildCnt - right; i++) {
         ins.push(createTypeFromTextOrElementNode(pChildren[i], mapping))
+        hooks.onInsertNode?.(pChildren[i], y);
       }
       yDomFragment.insert(left, ins)
     }
