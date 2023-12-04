@@ -24887,7 +24887,7 @@
         // Make sure this is called in a separate context
         rerenderTimeout = timeout(0, () => {
           binding._forceRerender();
-          view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }));
+          // view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }))
           onFirstRender();
         });
         return {
@@ -25122,7 +25122,7 @@
           new Slice(Fragment.from(fragmentContent), 0, 0)
         );
         this.prosemirrorView.dispatch(
-          tr.setMeta(ySyncPluginKey, { isChangeOrigin: true })
+          tr.setMeta(ySyncPluginKey, { isChangeOrigin: true, binding:this })
         );
       });
     }
@@ -25828,7 +25828,7 @@
         yChildren[0].delete(0, yChildren[0].length);
       } else if (yDelLen > 0) {
         yDomFragment.slice(left, left + yDelLen).forEach(type => {
-          hooks.onRemoveNode?.(mapping.get(type), y);
+          hooks?.onRemoveNode?.(mapping.get(type), y);
           mapping.delete(type);
         });
         yDomFragment.delete(left, yDelLen);
@@ -25837,7 +25837,7 @@
         const ins = [];
         for (let i = left; i < pChildCnt - right; i++) {
           ins.push(createTypeFromTextOrElementNode(pChildren[i], mapping));
-          hooks.onInsertNode?.(pChildren[i], y);
+          hooks?.onInsertNode?.(pChildren[i], y);
         }
         yDomFragment.insert(left, ins);
       }
@@ -29990,13 +29990,7 @@
       state: EditorState.create({
         schema,
         plugins: [
-          ySyncPlugin(type, {
-            hooks: {
-              onInsertNode: (pNode, yDoc) => {
-                console.log(pNode.toJSON());
-              }
-            }
-          }),
+          ySyncPlugin(type),
           yCursorPlugin(provider.awareness),
           yUndoPlugin(),
           keymap({
