@@ -18,7 +18,7 @@ export class ProsemirrorBinding {
     constructor(yXmlFragment: Y.XmlFragment, prosemirrorView: any, hooks?: Hooks);
     type: Y.XmlFragment;
     prosemirrorView: any;
-    hooks: Partial<Record<Hook, (arg0: PModel.Node | PModel.Node[], arg1: Y.Doc) => void>>;
+    hooks: Hooks;
     mux: import("lib0/mutex").mutex;
     isDestroyed: boolean;
     /**
@@ -78,8 +78,13 @@ export type ColorDef = {
     light: string;
     dark: string;
 };
-export type Hook = ('onInsertNode' | 'onRemoveNode' | 'onMoveNode');
-export type Hooks = Partial<Record<Hook, (arg0: PModel.Node | PModel.Node[], arg1: Y.Doc) => void>>;
+export type AddRemoveHookCb = (arg0: Y.Doc, arg1: PModel.Node | PModel.Node[], arg2: number | undefined) => void;
+export type ReorderHookCb = (arg0: Y.Doc, arg1: (PModel.Node | PModel.Node[])[]) => void;
+export type Hooks = {
+    onInsertNode?: AddRemoveHookCb;
+    onRemoveNode?: AddRemoveHookCb;
+    onOrderChange?: ReorderHookCb;
+};
 export type YSyncOpts = {
     colors?: Array<ColorDef>;
     colorMapping?: Map<string, ColorDef>;
