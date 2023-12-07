@@ -10555,11 +10555,16 @@ const isVisible = (item, snapshot) =>
  */
 
 /**
- * @typedef {('onInsertNode'|'onRemoveNode'|'onMoveNode')} Hook
+ * @typedef {function(Y.Doc, PModel.Node | PModel.Node[], number=): void} AddRemoveHookCb
+ * @typedef {function(Y.Doc, (PModel.Node | PModel.Node[])[]): void} ReorderHookCb
  */
 
 /**
- * @typedef {Partial<Record<Hook, function(PModel.Node | PModel.Node[], Y.Doc): void>>} Hooks
+ * @typedef {{
+ * onInsertNode?: AddRemoveHookCb,
+ * onRemoveNode?: AddRemoveHookCb,
+ * onOrderChange?: ReorderHookCb
+ * }} Hooks
  */
 
 /**
@@ -10629,6 +10634,7 @@ const ySyncPlugin = (yXmlFragment, {
           type: yXmlFragment,
           doc: yXmlFragment.doc,
           binding: null,
+          orderChange: null,
           snapshot: null,
           prevSnapshot: null,
           isChangeOrigin: false,
@@ -10732,10 +10738,28 @@ const ySyncPlugin = (yXmlFragment, {
                 }
               }
               binding.mux(() => {
-                /** @type {Y.Doc} */ (pluginState.doc).transact((tr) => {
-                  tr.meta.set('addToHistory', pluginState.addToHistory);
-                  binding._prosemirrorChanged(view.state.doc);
-                }, ySyncPluginKey);
+                /** @type {Y.Doc} */(pluginState.doc).transact((tr) => {
+                tr.meta.set('addToHistory', pluginState.addToHistory);
+                binding._prosemirrorChanged(view.state.doc);
+
+                // Running this here since we need it to be a part of the
+                // same transaction as the changes in XmlFragment
+                if (pluginState.orderChange) {
+                  const { nodeType, newOrder } = pluginState.orderChange;
+                  const yNodes = Array.from(pluginState.type.createTreeWalker(yxml => yxml.nodeName === nodeType));
+                  const pNodes = yNodes.map((yNode) => binding.mapping.get(yNode));
+                  console.debug({ newOrder, orderFromFragment: pNodes });
+                  hooks?.onOrderChange?.(pluginState.doc, pNodes);
+                }
+              }, ySyncPluginKey);
+
+                // TODO @harris Investigate how to run this orderChange flow exactly once per
+                // re-order
+                if (pluginState.orderChange) {
+                  eventloop__namespace.timeout(0, () => {
+                    view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { orderChange: null }));
+                  });
+                }
               });
             }
           }
@@ -10882,7 +10906,7 @@ class ProsemirrorBinding {
 
     return bounding.bottom >= 0 && bounding.right >= 0 &&
       bounding.left <=
-        (window.innerWidth || documentElement.clientWidth || 0) &&
+      (window.innerWidth || documentElement.clientWidth || 0) &&
       bounding.top <= (window.innerHeight || documentElement.clientHeight || 0)
   }
 
@@ -11203,7 +11227,7 @@ const createNodeFromYElement = (
     // an error occured while creating the node. This is probably a result of a concurrent action.
     /** @type {Y.Doc} */ (el.doc).transact((transaction) => {
       /** @type {Y.Item} */ (el._item).delete(transaction);
-    }, ySyncPluginKey);
+  }, ySyncPluginKey);
     mapping.delete(el);
     return null
   }
@@ -11242,7 +11266,7 @@ const createTextNodesFromYText = (
     // an error occured while creating the node. This is probably a result of a concurrent action.
     /** @type {Y.Doc} */ (text.doc).transact((transaction) => {
       /** @type {Y.Item} */ (text._item).delete(transaction);
-    }, ySyncPluginKey);
+  }, ySyncPluginKey);
     return null
   }
   // @ts-ignore
@@ -11308,7 +11332,7 @@ const equalAttrs = (pattrs, yattrs) => {
   const keys = Object.keys(pattrs).filter((key) => pattrs[key] !== null);
   let eq =
     keys.length ===
-      Object.keys(yattrs).filter((key) => yattrs[key] !== null).length;
+    Object.keys(yattrs).filter((key) => yattrs[key] !== null).length;
   for (let i = 0; i < keys.length && eq; i++) {
     const key = keys[i];
     const l = pattrs[key];
@@ -11390,8 +11414,8 @@ const mappedIdentity = (mapped, pcontent) =>
   mapped === pcontent ||
   (mapped instanceof Array && pcontent instanceof Array &&
     mapped.length === pcontent.length && mapped.every((a, i) =>
-    pcontent[i] === a
-  ));
+      pcontent[i] === a
+    ));
 
 /**
  * @param {Y.XmlElement} ytype
@@ -11589,6 +11613,7 @@ const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
             /** @type {PModel.Node} */ (rightP),
             mapping
           );
+
           if (
             equalityLeft.foundMappedChild && !equalityRight.foundMappedChild
           ) {
@@ -11640,10 +11665,12 @@ const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
       mapping.delete(yChildren[0]);
       // Edge case handling https://github.com/yjs/y-prosemirror/issues/108
       // Only delete the content of the Y.Text to retain remote changes on the same Y.Text object
+      // TODO @harris: This gets called for text nodes ie.. string[]. See if we need onRemove hook to be
+      // fired from here also.
       yChildren[0].delete(0, yChildren[0].length);
     } else if (yDelLen > 0) {
       yDomFragment.slice(left, left + yDelLen).forEach(type => {
-        hooks.onRemoveNode?.(mapping.get(type), y);
+        hooks?.onRemoveNode?.(y, mapping.get(type), left);
         mapping.delete(type);
       });
       yDomFragment.delete(left, yDelLen);
@@ -11652,7 +11679,7 @@ const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
       const ins = [];
       for (let i = left; i < pChildCnt - right; i++) {
         ins.push(createTypeFromTextOrElementNode(pChildren[i], mapping));
-        hooks.onInsertNode?.(pChildren[i], y);
+        hooks?.onInsertNode?.(y, pChildren[i], i);
       }
       yDomFragment.insert(left, ins);
     }
