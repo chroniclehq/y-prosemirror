@@ -44,15 +44,13 @@ export const isVisible = (item, snapshot) =>
  */
 
 /**
- * @typedef {function(Y.Doc, PModel.Node | PModel.Node[], number=): void} AddRemoveHookCb
- * @typedef {function(Y.Doc, (PModel.Node | PModel.Node[])[]): void} ReorderHookCb
+ * @typedef {function(Y.Doc, (PModel.Node | PModel.Node[])[]): void} HookCb
  */
 
 /**
  * @typedef {{
- * onInsertNode?: AddRemoveHookCb,
- * onRemoveNode?: AddRemoveHookCb,
- * onOrderChange?: ReorderHookCb
+ * onPageChange?: HookCb
+ * onOrderChange?: HookCb
  * }} Hooks
  */
 
@@ -234,10 +232,8 @@ export const ySyncPlugin = (yXmlFragment, {
                 // Running this here since we need it to be a part of the
                 // same transaction as the changes in XmlFragment
                 if (pluginState.orderChange) {
-                  const { nodeType, newOrder } = pluginState.orderChange;
-                  const yNodes = Array.from(pluginState.type.createTreeWalker(yxml => yxml.nodeName === nodeType));
+                  const yNodes = Array.from(pluginState.type.createTreeWalker(yxml => yxml.nodeName === 'page'));
                   const pNodes = yNodes.map((yNode) => binding.mapping.get(yNode));
-                  console.debug({ newOrder, orderFromFragment: pNodes });
                   hooks?.onOrderChange?.(pluginState.doc, pNodes);
                 }
               }, ySyncPluginKey)
@@ -1018,6 +1014,8 @@ const marksToAttributes = (marks) => {
  * @param {Hooks} [hooks]
  */
 export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
+  let hasChange = false;
+
   if (
     yDomFragment instanceof Y.XmlElement &&
     yDomFragment.nodeName !== pNode.type.name
@@ -1165,18 +1163,23 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
       yChildren[0].delete(0, yChildren[0].length)
     } else if (yDelLen > 0) {
       yDomFragment.slice(left, left + yDelLen).forEach(type => {
-        hooks?.onRemoveNode?.(y, mapping.get(type), left);
         mapping.delete(type)
       })
       yDomFragment.delete(left, yDelLen)
+      hasChange = true
     }
     if (left + right < pChildCnt) {
       const ins = []
       for (let i = left; i < pChildCnt - right; i++) {
         ins.push(createTypeFromTextOrElementNode(pChildren[i], mapping))
-        hooks?.onInsertNode?.(y, pChildren[i], i);
       }
       yDomFragment.insert(left, ins)
+      hasChange = true
+    }
+    if (hasChange) {
+      const yNodes = Array.from(yDomFragment.createTreeWalker((yxml) => yxml.nodeName === 'page'));
+      const pNodes = yNodes.map((yNode) => mapping.get(yNode));
+      hooks?.onPageChange(y, pNodes);
     }
   }, ySyncPluginKey)
 }
