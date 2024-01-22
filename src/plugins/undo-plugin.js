@@ -24,10 +24,10 @@ export const redo = state => {
 export const defaultProtectedNodes = new Set(['paragraph'])
 
 export const defaultDeleteFilter = (item, protectedNodes) => !(item instanceof Item) ||
-!(item.content instanceof ContentType) ||
-!(item.content.type instanceof Text ||
-  (item.content.type instanceof XmlElement && protectedNodes.has(item.content.type.nodeName))) ||
-item.content.type._length === 0
+  !(item.content instanceof ContentType) ||
+  !(item.content.type instanceof Text ||
+    (item.content.type instanceof XmlElement && protectedNodes.has(item.content.type.nodeName))) ||
+  item.content.type._length === 0
 
 export const yUndoPlugin = ({ protectedNodes = defaultProtectedNodes, trackedOrigins = [], undoManager = null } = {}) => new Plugin({
   key: yUndoPluginKey,
@@ -91,7 +91,11 @@ export const yUndoPlugin = ({ protectedNodes = defaultProtectedNodes, trackedOri
     })
     return {
       destroy: () => {
-        undoManager.destroy()
+        // @harris: We can't let this plugin manage the lifecyle for 
+        // undoManager instances that are provided from outside the plugin.
+        // Probably track this with a boolean and run the line below conditionally.
+
+        // undoManager.destroy()
       }
     }
   }
