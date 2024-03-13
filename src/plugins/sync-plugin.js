@@ -308,7 +308,7 @@ export class ProsemirrorBinding {
    * @param {any} prosemirrorView The target binding
    * @param {Hooks} [hooks]
    */
-  constructor (yXmlFragment, prosemirrorView, hooks) {
+  constructor(yXmlFragment, prosemirrorView, hooks) {
     this.type = yXmlFragment
     this.prosemirrorView = prosemirrorView
     this.hooks = hooks
@@ -352,11 +352,11 @@ export class ProsemirrorBinding {
    *
    * @returns
    */
-  get _tr () {
+  get _tr() {
     return this.prosemirrorView.state.tr.setMeta('addToHistory', false)
   }
 
-  _isLocalCursorInView () {
+  _isLocalCursorInView() {
     if (!this.prosemirrorView.hasFocus()) return false
     if (environment.isBrowser && this._domSelectionInView === null) {
       // Calculate the domSelectionInView and clear by next tick after all events are finished
@@ -368,7 +368,7 @@ export class ProsemirrorBinding {
     return this._domSelectionInView
   }
 
-  _isDomSelectionInView () {
+  _isDomSelectionInView() {
     const selection = this.prosemirrorView._root.getSelection()
 
     const range = this.prosemirrorView._root.createRange()
@@ -399,7 +399,7 @@ export class ProsemirrorBinding {
    * @param {Y.Snapshot} snapshot
    * @param {Y.Snapshot} prevSnapshot
    */
-  renderSnapshot (snapshot, prevSnapshot) {
+  renderSnapshot(snapshot, prevSnapshot) {
     if (!prevSnapshot) {
       prevSnapshot = Y.createSnapshot(Y.createDeleteSet(), new Map())
     }
@@ -408,12 +408,12 @@ export class ProsemirrorBinding {
     )
   }
 
-  unrenderSnapshot () {
+  unrenderSnapshot() {
     this.mapping = new Map()
     this.mux(() => {
       const fragmentContent = this.type.toArray().map((t) =>
         createNodeFromYElement(
-          /** @type {Y.XmlElement} */ (t),
+          /** @type {Y.XmlElement} */(t),
           this.prosemirrorView.state.schema,
           this.mapping
         )
@@ -429,12 +429,12 @@ export class ProsemirrorBinding {
     })
   }
 
-  _forceRerender () {
+  _forceRerender() {
     this.mapping = new Map()
     this.mux(() => {
       const fragmentContent = this.type.toArray().map((t) =>
         createNodeFromYElement(
-          /** @type {Y.XmlElement} */ (t),
+          /** @type {Y.XmlElement} */(t),
           this.prosemirrorView.state.schema,
           this.mapping
         )
@@ -456,7 +456,7 @@ export class ProsemirrorBinding {
    * @param {Y.Snapshot} prevSnapshot
    * @param {Object} pluginState
    */
-  _renderSnapshot (snapshot, prevSnapshot, pluginState) {
+  _renderSnapshot(snapshot, prevSnapshot, pluginState) {
     if (!snapshot) {
       snapshot = Y.snapshot(this.doc)
     }
@@ -469,7 +469,7 @@ export class ProsemirrorBinding {
         const pud = pluginState.permanentUserData
         if (pud) {
           pud.dss.forEach((ds) => {
-            Y.iterateDeletedStructs(transaction, ds, (_item) => {})
+            Y.iterateDeletedStructs(transaction, ds, (_item) => { })
           })
         }
         /**
@@ -530,7 +530,7 @@ export class ProsemirrorBinding {
    * @param {Array<Y.YEvent<any>>} events
    * @param {Y.Transaction} transaction
    */
-  _typeChanged (events, transaction) {
+  _typeChanged(events, transaction) {
     const syncState = ySyncPluginKey.getState(this.prosemirrorView.state)
     if (
       events.length === 0 || syncState.snapshot != null ||
@@ -560,7 +560,7 @@ export class ProsemirrorBinding {
       transaction.changedParentTypes.forEach(delType)
       const fragmentContent = this.type.toArray().map((t) =>
         createNodeIfNotExists(
-          /** @type {Y.XmlElement | Y.XmlHook} */ (t),
+          /** @type {Y.XmlElement | Y.XmlHook} */(t),
           this.prosemirrorView.state.schema,
           this.mapping
         )
@@ -582,7 +582,7 @@ export class ProsemirrorBinding {
     })
   }
 
-  _prosemirrorChanged (doc) {
+  _prosemirrorChanged(doc) {
     this.doc.transact(() => {
       updateYFragment(this.doc, this.type, doc, this.mapping, this.hooks)
       this.beforeTransactionSelection = getRelativeSelection(
@@ -592,7 +592,7 @@ export class ProsemirrorBinding {
     }, ySyncPluginKey)
   }
 
-  destroy () {
+  destroy() {
     this.isDestroyed = true
     this.type.unobserveDeep(this._observeFunction)
     this.doc.off('beforeAllTransactions', this.beforeAllTransactions)
@@ -695,13 +695,13 @@ const createNodeFromYElement = (
   try {
     const attrs = el.getAttributes(snapshot)
     if (snapshot !== undefined) {
-      if (!isVisible(/** @type {Y.Item} */ (el._item), snapshot)) {
+      if (!isVisible(/** @type {Y.Item} */(el._item), snapshot)) {
         attrs.ychange = computeYChange
-          ? computeYChange('removed', /** @type {Y.Item} */ (el._item).id)
+          ? computeYChange('removed', /** @type {Y.Item} */(el._item).id)
           : { type: 'removed' }
-      } else if (!isVisible(/** @type {Y.Item} */ (el._item), prevSnapshot)) {
+      } else if (!isVisible(/** @type {Y.Item} */(el._item), prevSnapshot)) {
         attrs.ychange = computeYChange
-          ? computeYChange('added', /** @type {Y.Item} */ (el._item).id)
+          ? computeYChange('added', /** @type {Y.Item} */(el._item).id)
           : { type: 'added' }
       }
     }
@@ -1097,13 +1097,13 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
         if (updateLeft && updateRight) {
           // decide which which element to update
           const equalityLeft = computeChildEqualityFactor(
-            /** @type {Y.XmlElement} */ (leftY),
-            /** @type {PModel.Node} */ (leftP),
+            /** @type {Y.XmlElement} */(leftY),
+            /** @type {PModel.Node} */(leftP),
             mapping
           )
           const equalityRight = computeChildEqualityFactor(
-            /** @type {Y.XmlElement} */ (rightY),
-            /** @type {PModel.Node} */ (rightP),
+            /** @type {Y.XmlElement} */(rightY),
+            /** @type {PModel.Node} */(rightP),
             mapping
           )
 
@@ -1126,8 +1126,8 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
         if (updateLeft) {
           updateYFragment(
             y,
-            /** @type {Y.XmlFragment} */ (leftY),
-            /** @type {PModel.Node} */ (leftP),
+            /** @type {Y.XmlFragment} */(leftY),
+            /** @type {PModel.Node} */(leftP),
             mapping,
             hooks
           )
@@ -1135,8 +1135,8 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
         } else if (updateRight) {
           updateYFragment(
             y,
-            /** @type {Y.XmlFragment} */ (rightY),
-            /** @type {PModel.Node} */ (rightP),
+            /** @type {Y.XmlFragment} */(rightY),
+            /** @type {PModel.Node} */(rightP),
             mapping,
             hooks
           )
@@ -1179,7 +1179,7 @@ export const updateYFragment = (y, yDomFragment, pNode, mapping, hooks) => {
     if (hasChange) {
       const yNodes = Array.from(yDomFragment.createTreeWalker((yxml) => yxml.nodeName === 'page'));
       const pNodes = yNodes.map((yNode) => mapping.get(yNode));
-      hooks?.onPageChange(y, pNodes);
+      hooks?.onPageChange?.(y, pNodes);
     }
   }, ySyncPluginKey)
 }
